@@ -308,10 +308,11 @@
 
 <script>
         // ==========================================
-        // 1. 密碼驗證區 (SHA-256: 6952)
+        // 1. 密碼驗證設定 (密碼: 6952)
         // ==========================================
         const CORRECT_HASH = "951475c4044eb985db586c556b694723141f0217277d704543787a2a53702581";
 
+        // 加密輔助函式
         async function sha256(message) {
             const msgBuffer = new TextEncoder().encode(message);
             const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -319,23 +320,28 @@
             return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
+        // 檢查密碼函式
         async function checkPassword() {
             const inputField = document.getElementById('password-input');
             const msg = document.getElementById('auth-msg');
-            const inputVal = inputField.value;
+            
+            // ★ 修正重點：加入 .trim() 自動去除前後空白，避免手機輸入法造成錯誤
+            const inputVal = inputField.value.trim();
 
             if (!inputVal) return;
 
             const hash = await sha256(inputVal);
             
             if (hash === CORRECT_HASH) {
+                // 密碼正確
                 document.getElementById('lock-screen').classList.add('hidden-overlay');
                 document.getElementById('loading-overlay').classList.remove('hidden');
                 
-                // 解鎖後才開始跑這兩個重要功能
+                // 啟動程式
                 renderList(); 
                 startGlobalSync();
             } else {
+                // 密碼錯誤
                 inputField.value = '';
                 msg.innerText = "密碼錯誤";
                 inputField.classList.add('shake');
@@ -344,7 +350,7 @@
         }
 
         // ==========================================
-        // 2. 全域變數宣告 (原本缺少的這一塊)
+        // 2. 應用程式全域變數 (請勿刪除)
         // ==========================================
         const apiKey = ""; 
         const INITIAL_STATE = {
@@ -360,16 +366,19 @@
         let initialChartLoaded = false;
         let isAppUnlocked = false; 
 
-        // 初始化監聽 (聚焦輸入框)
+        // 頁面載入初始化
         window.onload = () => { 
-            document.getElementById('password-input').focus();
-            document.getElementById('password-input').addEventListener('keypress', function (e) {
-                if (e.key === 'Enter') checkPassword();
-            });
+            const input = document.getElementById('password-input');
+            if(input) {
+                input.focus();
+                input.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') checkPassword();
+                });
+            }
         };
 
         // ==========================================
-        // 3. 功能函式 (save, switchUser 等)
+        // 3. 功能邏輯函式
         // ==========================================
 
         function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); }
@@ -387,7 +396,6 @@
             
             renderList(); 
             updateSummary(); 
-            // 切換分頁時立即刷新一次圖表
             updateTrendChart();
             if (isTotal) renderPieCharts();
             renderDividendTable();
@@ -451,17 +459,16 @@
             });
         }
 
-        // 更新全螢幕載入畫面的狀態
         function updateLoadingScreen(current, total, text) {
             const pct = Math.min(Math.round((current / total) * 100), 100);
-            document.getElementById('loading-bar-inner').style.width = `${pct}%`;
-            document.getElementById('loading-pct').innerText = `${pct}%`;
-            if(text) document.getElementById('loading-detail').innerText = text;
+            const bar = document.getElementById('loading-bar-inner');
+            const txt = document.getElementById('loading-pct');
+            const det = document.getElementById('loading-detail');
+            if(bar) bar.style.width = `${pct}%`;
+            if(txt) txt.innerText = `${pct}%`;
+            if(text && det) det.innerText = text;
         }
 
-        /**
-         * 標記同步與圖表冷卻邏輯
-         */
         function markSynced(id, totalNeeded) {
             if (syncedSet.has(id)) return; 
             syncedSet.add(id);
@@ -684,11 +691,10 @@
             } catch (err) { content.innerHTML = `<span>AI 服務繁忙。</span>`; btn.innerText = "重試 ✨"; } finally { btn.disabled = false; }
         }
 
-        // 修改 fullRefresh 以重置解鎖後的流程（但不鎖定）
         function fullRefresh() { 
             cache = {}; syncedSet.clear(); usdToTwd = null; 
             initialChartLoaded = false; 
-            isAppUnlocked = false; // 重置此標記以再次顯示 loading
+            isAppUnlocked = false; 
             document.getElementById('refresh-icon').classList.add('animate-spin'); 
             
             // 隱藏 App，顯示 Loading
