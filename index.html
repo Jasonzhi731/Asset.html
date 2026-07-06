@@ -1,574 +1,376 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>企業數據視覺化儀表板</title>
-    <!-- 引入 Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- 引入 Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        /* 隱藏未啟用的分頁內容 */
-        .tab-content.hidden { display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>產業新聞日報 · 雙語版</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@700;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F6F5; --ink:#152026; --ink-soft:#5A6B73; --line:#D8DFDD;
+    --wire:#0B6E4F; --wire-bright:#0F9468; --wire-pale:#E7F2ED; --card:#FFF;
+    --mono:'IBM Plex Mono',ui-monospace,monospace;
+    --serif:'Noto Serif TC',serif;
+    --sans:'Noto Sans TC',system-ui,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  body{background:var(--paper);color:var(--ink);font-family:var(--sans);line-height:1.65;padding-bottom:90px}
+
+  /* ── 電報頂條 ── */
+  .ticker{background:var(--ink);color:#CFE8DD;font-family:var(--mono);font-size:11px;
+          padding:6px 14px;display:flex;gap:10px;align-items:center;white-space:nowrap;overflow:hidden;
+          position:sticky;top:0;z-index:30}
+  .ticker .dot{width:7px;height:7px;border-radius:50%;background:#5B6B72;flex:none;transition:background .3s}
+  .ticker.live .dot{background:var(--wire-bright);animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{opacity:.35}}
+  .ticker span:last-child{overflow:hidden;text-overflow:ellipsis}
+
+  header{padding:20px 16px 12px;border-bottom:3px solid var(--ink);max-width:640px;margin:0 auto}
+  header h1{font-family:var(--serif);font-weight:900;font-size:26px;letter-spacing:.04em}
+  header h1 em{font-style:normal;color:var(--wire)}
+  header .date{font-family:var(--mono);font-size:12px;color:var(--ink-soft);margin-top:2px}
+
+  .wrap{max-width:640px;margin:0 auto;padding:0 14px}
+
+  /* ── 設定區 ── */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:14px}
+  .panel-label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-soft);margin-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:var(--wire-pale);border:1px solid var(--line);
+        border-radius:999px;padding:5px 12px;font-size:13px;font-weight:500}
+  .chip button{border:none;background:none;cursor:pointer;color:var(--ink-soft);font-size:15px;line-height:1;padding:0 0 0 2px}
+  #kwInput{border:1px dashed var(--line);border-radius:999px;padding:6px 14px;font-size:13px;font-family:var(--sans);
+           background:transparent;outline:none;flex:1;min-width:120px}
+  #kwInput:focus{border-color:var(--wire)}
+  .key-row{display:flex;gap:8px;align-items:center;margin-top:10px}
+  #apiKey{flex:1;border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:13px;
+          font-family:var(--mono);background:#FAFBFA;outline:none}
+  #apiKey:focus{border-color:var(--wire)}
+  #modelSelect{width:100%;border:1px solid var(--line);border-radius:8px;padding:10px 12px;font-size:14px;
+               font-family:var(--sans);background:#FAFBFA;color:var(--ink);outline:none;appearance:none;
+               background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%235A6B73' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+               background-repeat:no-repeat;background-position:right 14px center}
+  #modelSelect:focus{border-color:var(--wire)}
+  #modelSelect:focus-visible{outline:2px solid var(--wire);outline-offset:2px}
+  .key-hint{font-size:11px;color:var(--ink-soft);margin-top:6px}
+
+  .btn{border:none;border-radius:10px;padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;
+       font-family:var(--sans);width:100%;margin-top:12px}
+  .btn:focus-visible,#apiKey:focus-visible,#kwInput:focus-visible,.chip button:focus-visible,.seg button:focus-visible{outline:2px solid var(--wire);outline-offset:2px}
+  .btn-primary{background:var(--wire);color:#fff}
+  .btn-primary:active{background:var(--wire-bright)}
+  .btn-primary:disabled{background:#9DB5AC}
+
+  /* ── 語言切換(懸浮)── */
+  .seg{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);z-index:40;
+       background:var(--ink);border-radius:999px;padding:4px;display:flex;gap:2px;
+       box-shadow:0 6px 20px rgba(21,32,38,.3)}
+  .seg button{border:none;background:transparent;color:#AFC4BC;font-family:var(--sans);font-weight:700;
+              font-size:14px;padding:9px 20px;border-radius:999px;cursor:pointer;transition:background .15s,color .15s}
+  .seg button.on{background:var(--wire-bright);color:#fff}
+
+  /* ── 新聞卡片 ── */
+  .col-title{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-soft);
+             margin:20px 2px 10px;display:flex;justify-content:space-between}
+  .col-title .count{color:var(--wire)}
+  .article{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--line);
+           border-radius:8px;padding:14px 16px;margin-bottom:12px}
+  .article.done{border-left-color:var(--wire)}
+  .article .meta{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-bottom:6px;display:flex;gap:10px;flex-wrap:wrap}
+  .article .meta .src{color:var(--wire);font-weight:500}
+  .article h3{font-size:15.5px;font-weight:700;line-height:1.5;font-family:var(--serif)}
+  .article h3 a{color:inherit;text-decoration:none}
+  .article .sum{font-size:14px;margin-top:8px;color:#2A3940}
+  .article .sum.en{font-family:Georgia,'Noto Serif TC',serif;letter-spacing:.01em}
+  .detail .one-line{font-weight:700;color:var(--ink)}
+  .detail details{margin-top:8px}
+  .detail summary{cursor:pointer;font-size:12.5px;color:var(--wire);font-weight:700;
+                  font-family:var(--mono);letter-spacing:.06em;padding:4px 0;list-style-position:inside}
+  .detail summary:focus-visible{outline:2px solid var(--wire);outline-offset:2px}
+  .detail h5{font-size:12px;font-family:var(--mono);letter-spacing:.1em;color:var(--wire);margin:10px 0 3px}
+  .detail ul{padding-left:18px;font-size:13.5px}
+  .detail li{margin-bottom:3px}
+  .detail p{font-size:13.5px}
+  .article .pending{font-size:12.5px;color:var(--ink-soft);margin-top:6px}
+  .lang-en .zh, .lang-zh .en{display:none}
+  .lang-both .sum.zh{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px}
+
+  .empty{border:1.5px dashed var(--line);border-radius:10px;padding:44px 20px;text-align:center;color:var(--ink-soft);font-size:14px;margin-top:16px}
+  @media (prefers-reduced-motion:reduce){.ticker.live .dot{animation:none}}
+</style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-4 md:p-8">
+<body class="lang-zh">
 
-    <div class="max-w-7xl mx-auto space-y-6">
-        
-        <!-- 頁首標題 -->
-        <header class="flex items-center space-x-3 mb-4">
-            <div class="p-3 bg-blue-600 rounded-lg text-white">
-                <i data-lucide="bar-chart-2"></i>
-            </div>
-            <div>
-                <h1 class="text-2xl font-bold text-slate-900">企業數據視覺化儀表板</h1>
-                <p class="text-sm text-slate-500">輸入或貼上表格資料，自動生成圖表與統計數據</p>
-            </div>
-        </header>
+<div class="ticker" id="ticker"><span class="dot"></span><span id="tickerText">WIRE STANDBY — 按「抓取今日新聞」開始</span></div>
 
-        <!-- 分頁導覽列 -->
-        <div class="border-b border-slate-200">
-            <nav class="flex space-x-8" aria-label="Tabs">
-                <button onclick="switchTab('input')" id="btn-tab-input" class="border-blue-500 text-blue-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors">
-                    <i data-lucide="table" class="w-4 h-4"></i> 資料輸入
-                </button>
-                <button onclick="switchTab('charts')" id="btn-tab-charts" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors">
-                    <i data-lucide="pie-chart" class="w-4 h-4"></i> 圖表分析
-                </button>
-                <button onclick="switchTab('stats')" id="btn-tab-stats" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors">
-                    <i data-lucide="list-ordered" class="w-4 h-4"></i> 詳細數據
-                </button>
-            </nav>
-        </div>
+<header>
+  <h1>產業新聞<em>日報</em></h1>
+  <div class="date" id="todayDate"></div>
+</header>
 
-        <!-- 分頁 1：資料輸入 -->
-        <div id="tab-input" class="tab-content block space-y-6">
-            <section class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div class="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                    <h2 class="text-lg font-semibold flex items-center gap-2">
-                        資料列表
-                    </h2>
-                    <div class="flex gap-2">
-                        <button onclick="togglePasteArea()" class="px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1">
-                            <i data-lucide="clipboard-paste" class="w-4 h-4"></i> 從 Excel 貼上
-                        </button>
-                        <button onclick="addRow()" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors flex items-center gap-1">
-                            <i data-lucide="plus" class="w-4 h-4"></i> 新增一列
-                        </button>
-                        <button onclick="resetData()" class="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors flex items-center gap-1">
-                            <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 重設範例
-                        </button>
-                    </div>
-                </div>
+<div class="wrap">
+  <div class="panel">
+    <div class="panel-label">關鍵字 KEYWORDS</div>
+    <div class="chips" id="chipArea"></div>
+    <div class="chips" style="margin-top:8px"><input id="kwInput" placeholder="輸入關鍵字後按 Enter" aria-label="新增關鍵字"></div>
 
-                <!-- 貼上資料區塊 -->
-                <div id="pasteAreaContainer" class="hidden p-6 border-b border-slate-100 bg-blue-50/30">
-                    <label class="block text-sm font-medium text-slate-700 mb-2">請將 Excel 或 CSV 資料貼在下方文字方塊中 (以 Tab 分隔)：</label>
-                    <textarea id="pasteInput" rows="4" class="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-sm font-mono" placeholder="公司&#9;a&#9;產業&#9;c&#9;職位&#9;日期..."></textarea>
-                    <div class="mt-3 flex justify-end gap-2">
-                        <button onclick="togglePasteArea()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">取消</button>
-                        <button onclick="processPastedData()" class="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">載入資料</button>
-                    </div>
-                </div>
+    <div class="panel-label" style="margin-top:14px">模型 MODEL</div>
+    <select id="modelSelect" aria-label="選擇 Gemini 模型">
+      <option value="gemini-2.5-flash" selected>Gemini 2.5 Flash(預設・最快)</option>
+      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+      <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro</option>
+    </select>
+    <div class="key-hint">若選擇的模型呼叫失敗(額度用完等),會自動切換到下一個模型重試。</div>
 
-                <!-- 表格主體 -->
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-left">
-                        <thead class="text-xs text-slate-600 uppercase bg-slate-100/50">
-                            <tr>
-                                <th class="px-4 py-3 font-semibold w-1/6">公司</th>
-                                <th class="px-4 py-3 font-semibold w-1/12">a</th>
-                                <th class="px-4 py-3 font-semibold w-1/6">產業</th>
-                                <th class="px-4 py-3 font-semibold w-1/6">c</th>
-                                <th class="px-4 py-3 font-semibold w-1/6">職位</th>
-                                <th class="px-4 py-3 font-semibold w-1/6">日期</th>
-                                <th class="px-4 py-3 font-semibold w-16 text-center">操作</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableBody" class="divide-y divide-slate-100"></tbody>
-                    </table>
-                </div>
-                <div id="emptyState" class="hidden p-8 text-center text-slate-400">
-                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
-                    <p>目前沒有資料，請新增資料或貼上 Excel 內容。</p>
-                </div>
-            </section>
-        </div>
-
-        <!-- 分頁 2：圖表分析 -->
-        <div id="tab-charts" class="tab-content hidden space-y-6">
-            
-            <!-- 1. 折線圖 (最上方) -->
-            <section>
-                <h2 class="text-lg font-semibold flex items-center gap-2 px-1 mb-4">
-                    <i data-lucide="trending-up" class="w-5 h-5 text-emerald-500"></i> 每日觀看/紀錄次數
-                </h2>
-                <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
-                    <div class="relative w-full h-[300px] md:h-[400px]">
-                        <canvas id="dateChart"></canvas>
-                    </div>
-                </div>
-            </section>
-
-            <!-- 2. 圓餅圖 (折線圖下方) -->
-            <section>
-                <h2 class="text-lg font-semibold flex items-center gap-2 px-1 mb-4 pt-4">
-                    <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-500"></i> 佔比分析 <span class="text-sm font-normal text-slate-400 ml-2">(佔比低於 2% 之項目已自動歸類為「其他」)</span>
-                </h2>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center">
-                        <h3 class="text-sm font-bold text-slate-600 mb-4 w-full text-center">公司佔比</h3>
-                        <div class="relative w-full aspect-square max-w-[280px]">
-                            <canvas id="companyChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center">
-                        <h3 class="text-sm font-bold text-slate-600 mb-4 w-full text-center">產業佔比</h3>
-                        <div class="relative w-full aspect-square max-w-[280px]">
-                            <canvas id="industryChart"></canvas>
-                        </div>
-                    </div>
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 flex flex-col items-center">
-                        <h3 class="text-sm font-bold text-slate-600 mb-4 w-full text-center">職位佔比</h3>
-                        <div class="relative w-full aspect-square max-w-[280px]">
-                            <canvas id="positionChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- 分頁 3：詳細數據 -->
-        <div id="tab-stats" class="tab-content hidden space-y-6">
-            <h2 class="text-lg font-semibold flex items-center gap-2 px-1 mb-4">
-                <i data-lucide="list-ordered" class="w-5 h-5 text-purple-500"></i> 詳細統計數據報表
-            </h2>
-            
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- 公司統計表格 -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden self-start">
-                    <div class="bg-blue-50/50 p-3 border-b border-slate-200 font-semibold text-slate-800 text-center">公司統計</div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-100">
-                                <tr>
-                                    <th class="px-4 py-3">項目</th>
-                                    <th class="px-4 py-3 text-right">筆數</th>
-                                    <th class="px-4 py-3 text-right">佔比</th>
-                                </tr>
-                            </thead>
-                            <tbody id="companyStatsTable" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 產業統計表格 -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden self-start">
-                    <div class="bg-emerald-50/50 p-3 border-b border-slate-200 font-semibold text-slate-800 text-center">產業統計</div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-100">
-                                <tr>
-                                    <th class="px-4 py-3">項目</th>
-                                    <th class="px-4 py-3 text-right">筆數</th>
-                                    <th class="px-4 py-3 text-right">佔比</th>
-                                </tr>
-                            </thead>
-                            <tbody id="industryStatsTable" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-
-                <!-- 職位統計表格 -->
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden self-start">
-                    <div class="bg-amber-50/50 p-3 border-b border-slate-200 font-semibold text-slate-800 text-center">職位統計</div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm text-left">
-                            <thead class="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-100">
-                                <tr>
-                                    <th class="px-4 py-3">項目</th>
-                                    <th class="px-4 py-3 text-right">筆數</th>
-                                    <th class="px-4 py-3 text-right">佔比</th>
-                                </tr>
-                            </thead>
-                            <tbody id="positionStatsTable" class="divide-y divide-slate-100"></tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+    <div class="panel-label" style="margin-top:14px">GEMINI API KEY</div>
+    <div class="key-row">
+      <input id="apiKey" type="password" placeholder="貼上你的 Gemini API Key(輸入時不會顯示)" autocomplete="off" aria-label="Gemini API Key">
     </div>
+    <div class="key-hint">金鑰只存在這個頁面的記憶體中,不會被儲存或顯示。可到 aistudio.google.com/apikey 免費取得。</div>
 
-    <script>
-        lucide.createIcons();
+    <button class="btn btn-primary" id="fetchBtn">抓取今日新聞</button>
+    <button class="btn btn-primary" id="summBtn" disabled style="display:none">產生中英雙語摘要</button>
+  </div>
 
-        const initialData = [
-            { company: "鵬鼎科技(股)", a: "A0058", industry: "半導體", c: "研發設計", position: "主任", date: "2026/4/28" },
-            { company: "鵬鼎科技(股)", a: "A0305", industry: "半導體", c: "研發設計", position: "經理", date: "2026/4/24" },
-            { company: "鵬鼎科技(股)", a: "A0314", industry: "半導體", c: "研發設計", position: "研究員/分析師", date: "2026/4/24" },
-            { company: "鴻海精密工業(股)", a: "A0042", industry: "其他", c: "研發設計", position: "工程師", date: "2026/4/29" },
-            { company: "鴻海精密工業(股)", a: "A0071", industry: "電腦與週邊", c: "未分類", position: "未分類", date: "2026/4/28" }
-        ];
+  <div class="col-title"><span>今日新聞(近 24 小時)</span><span class="count" id="countLabel"></span></div>
+  <div id="articleList"><div class="empty">尚未抓取。設定好關鍵字後按上方按鈕。</div></div>
+</div>
 
-        let tableData = JSON.parse(JSON.stringify(initialData));
-        
-        let chartInstances = { company: null, industry: null, position: null, date: null };
+<div class="seg" role="group" aria-label="語言切換">
+  <button data-lang="zh" class="on">中文</button>
+  <button data-lang="en">EN</button>
+  <button data-lang="both">對照</button>
+</div>
 
-        const chartColors = [
-            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', 
-            '#8b5cf6', '#ec4899', '#06b6d4', '#f97316',
-            '#64748b', '#84cc16'
-        ];
+<script>
+/* ══════════ 設定 ══════════ */
+const DEFAULT_KEYWORDS = ['半導體', '晶圓代工', 'IC 設計'];
+const MAX_SUMMARIZE = 15;   // 每次送給 LLM 摘要的新聞數上限
+const CORS_PROXY = u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u);
+const rssUrl = kw =>
+  `https://news.google.com/rss/search?q=${encodeURIComponent(kw + ' when:1d')}&hl=zh-TW&gl=TW&ceid=TW:zh-Hant`;
 
-        // --- 分頁切換邏輯 ---
-        function switchTab(tabId) {
-            // 隱藏所有分頁內容
-            document.querySelectorAll('.tab-content').forEach(el => {
-                el.classList.add('hidden');
-                el.classList.remove('block');
-            });
-            // 顯示目標分頁內容
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-            document.getElementById(`tab-${tabId}`).classList.add('block');
+let keywords = [...DEFAULT_KEYWORDS];
+let articles = [];
 
-            // 更新按鈕樣式
-            const tabs = ['input', 'charts', 'stats'];
-            tabs.forEach(t => {
-                const btn = document.getElementById(`btn-tab-${t}`);
-                if (t === tabId) {
-                    btn.classList.add('border-blue-500', 'text-blue-600');
-                    btn.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'hover:border-slate-300');
-                } else {
-                    btn.classList.remove('border-blue-500', 'text-blue-600');
-                    btn.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'hover:border-slate-300');
-                }
-            });
+/* ══════════ Gemini API 呼叫(讀取隱藏輸入框的 Key)══════════ */
+const MODEL_ORDER = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-3.1-pro-preview'];
 
-            // 如果切換到圖表頁，重新渲染一次以避免 Canvas 尺寸在隱藏時被算錯
-            if(tabId === 'charts') {
-                updateCharts();
-            }
-        }
+async function callGemini(prompt, model){
+  const key = document.getElementById('apiKey').value.trim();
+  if(!key) throw new Error('請先輸入 Gemini API Key');
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', 'x-goog-api-key': key },
+    body: JSON.stringify({
+      contents:[{ parts:[{ text: prompt }] }],
+      generationConfig:{ maxOutputTokens: 32768, temperature: 0.4 }
+    })
+  });
+  if(!res.ok){
+    const hint = res.status===400||res.status===403 ? '(Key 無效?)'
+               : res.status===429 ? '(額度或頻率上限)' : '';
+    throw new Error(model + ' 回應 ' + res.status + hint);
+  }
+  const data = await res.json();
+  const text = (data.candidates?.[0]?.content?.parts||[]).map(p=>p.text||'').join('').trim();
+  if(!text) throw new Error(model + ' 未回傳內容');
+  return text;
+}
 
-        // --- 表格操作邏輯 ---
-        function renderTable() {
-            const tbody = document.getElementById('tableBody');
-            const emptyState = document.getElementById('emptyState');
-            tbody.innerHTML = '';
+/* 先用選單選的模型,失敗時自動依序切換到其他模型 */
+async function callLLM(prompt){
+  const chosen = document.getElementById('modelSelect').value;
+  const order = [chosen, ...MODEL_ORDER.filter(m=>m!==chosen)];
+  let lastErr;
+  for(const model of order){
+    try{
+      if(model !== chosen) ticker(`WIRE — ${model} 接手重試中…`, true);
+      const text = await callGemini(prompt, model);
+      if(model !== chosen) ticker(`WIRE — 已自動切換至 ${model}`, true);
+      return text;
+    }catch(err){
+      lastErr = err;
+      if(String(err.message).includes('請先輸入')) throw err;  // 沒 Key 就不用換模型了
+    }
+  }
+  throw lastErr;
+}
 
-            if (tableData.length === 0) {
-                emptyState.classList.remove('hidden');
-            } else {
-                emptyState.classList.add('hidden');
-            }
+/* ── 小工具 ── */
+const $ = id => document.getElementById(id);
+const ticker = (msg, live=false)=>{ $('ticker').classList.toggle('live',live); $('tickerText').textContent = msg; };
+const fmtTime = d => d.toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit',hour12:false});
+const escapeHtml = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-            tableData.forEach((row, index) => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition-colors group";
-                
-                const fields = ['company', 'a', 'industry', 'c', 'position', 'date'];
-                fields.forEach(field => {
-                    const td = document.createElement('td');
-                    td.className = "p-2";
-                    td.innerHTML = `
-                        <input type="text" 
-                               value="${row[field]}" 
-                               oninput="updateData(${index}, '${field}', this.value)"
-                               class="w-full px-2 py-1.5 bg-transparent border border-transparent hover:border-slate-300 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-100 rounded transition-all outline-none text-slate-700">
-                    `;
-                    tr.appendChild(td);
-                });
+/* ── 關鍵字 ── */
+function renderChips(){
+  $('chipArea').innerHTML = keywords.map((k,i)=>
+    `<span class="chip">${escapeHtml(k)}<button aria-label="刪除 ${escapeHtml(k)}" onclick="removeKw(${i})">×</button></span>`).join('');
+  saveSettings();
+}
+function removeKw(i){ keywords.splice(i,1); renderChips(); }
+$('kwInput').addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.value.trim()){
+    const v = e.target.value.trim();
+    if(!keywords.includes(v)) keywords.push(v);
+    e.target.value=''; renderChips();
+  }
+});
+async function saveSettings(){
+  try{ if(window.storage) await window.storage.set('news-settings',
+    JSON.stringify({ keywords, model: document.getElementById('modelSelect').value })); }catch(e){}
+}
+async function loadSettings(){
+  try{ if(window.storage){ const r = await window.storage.get('news-settings');
+    if(r&&r.value){ const s=JSON.parse(r.value);
+      if(Array.isArray(s.keywords)&&s.keywords.length) keywords=s.keywords;
+      if(s.model && MODEL_ORDER.includes(s.model)) document.getElementById('modelSelect').value = s.model;
+    } } }catch(e){}
+  renderChips();
+}
+document.getElementById('modelSelect').addEventListener('change', saveSettings);
 
-                const tdAction = document.createElement('td');
-                tdAction.className = "p-2 text-center";
-                tdAction.innerHTML = `
-                    <button onclick="deleteRow(${index})" class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" title="刪除此列">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
-                `;
-                tr.appendChild(tdAction);
-                tbody.appendChild(tr);
-            });
-            
-            lucide.createIcons();
-            updateAllData(); // 同步更新圖表與統計表格
-        }
+/* ── 抓取 RSS ── */
+async function fetchNews(){
+  if(!keywords.length){ ticker('WIRE ERROR — 請先新增關鍵字'); return; }
+  $('fetchBtn').disabled = true;
+  ticker(`WIRE OPEN — 併發抓取 ${keywords.length} 條 RSS…`, true);
 
-        function updateData(index, field, value) {
-            tableData[index][field] = value;
-            updateAllData();
-        }
+  const results = await Promise.allSettled(keywords.map(async kw=>{
+    const res = await fetch(CORS_PROXY(rssUrl(kw)));
+    if(!res.ok) throw new Error(kw);
+    const xml = new DOMParser().parseFromString(await res.text(),'text/xml');
+    return [...xml.querySelectorAll('item')].map(item=>({
+      kw,
+      title:(item.querySelector('title')?.textContent||'').trim(),
+      link:(item.querySelector('link')?.textContent||'').trim(),
+      source:(item.querySelector('source')?.textContent||'').trim(),
+      time:new Date(item.querySelector('pubDate')?.textContent||Date.now()),
+      titleEn:null, sumEn:null, detail:null
+    }));
+  }));
 
-        function addRow() {
-            const today = new Date();
-            const dateString = `${today.getFullYear()}/${today.getMonth() + 1}/${today.getDate()}`;
-            tableData.push({ company: "", a: "", industry: "", c: "", position: "", date: dateString });
-            renderTable();
-        }
+  const failedKw = keywords.filter((_,i)=>results[i].status==='rejected');
+  const seen = new Set();
+  articles = results.filter(r=>r.status==='fulfilled').flatMap(r=>r.value).filter(a=>{
+    const key = a.title.replace(/\s|[-–—|].*$/g,'').slice(0,20);
+    if(!a.title||seen.has(key)) return false;
+    seen.add(key); return true;
+  }).sort((a,b)=>b.time-a.time);
 
-        function deleteRow(index) {
-            tableData.splice(index, 1);
-            renderTable();
-        }
+  renderArticles();
+  ticker(`WIRE OK — ${articles.length} 則 · ${fmtTime(new Date())}` + (failedKw.length?` · 失敗:${failedKw.join('、')}`:''));
+  $('fetchBtn').disabled = false;
+  $('summBtn').style.display = articles.length? 'block':'none';
+  $('summBtn').disabled = !articles.length;
+}
 
-        function resetData() {
-            if(confirm("確定要放棄目前修改，還原成預設的範例資料嗎？")) {
-                tableData = JSON.parse(JSON.stringify(initialData));
-                renderTable();
-            }
-        }
+function renderArticles(){
+  $('countLabel').textContent = articles.length? articles.length+' 則':'';
+  if(!articles.length){
+    $('articleList').innerHTML = '<div class="empty">沒有抓到新聞 — 換個關鍵字,或稍後再試(proxy 偶爾忙線)。</div>';
+    return;
+  }
+  $('articleList').innerHTML = articles.map(a=>`
+    <div class="article ${a.detail?'done':''}">
+      <div class="meta"><span class="src">${escapeHtml(a.source||'新聞')}</span><span>${fmtTime(a.time)}</span><span>#${escapeHtml(a.kw)}</span></div>
+      <h3>
+        <span class="zh"><a href="${escapeHtml(a.link)}" target="_blank" rel="noopener">${escapeHtml(a.title)}</a></span>
+        <span class="en"><a href="${escapeHtml(a.link)}" target="_blank" rel="noopener">${escapeHtml(a.titleEn||a.title)}</a></span>
+      </h3>
+      ${a.detail ? `
+      <div class="sum en">${escapeHtml(a.sumEn)}</div>
+      <div class="sum zh detail">
+        <p class="one-line">${escapeHtml(a.detail.oneLine)}</p>
+        <details>
+          <summary>完整摘要</summary>
+          <h5>主要重點</h5>
+          <ul>${a.detail.points.map(p=>`<li>${escapeHtml(p)}</li>`).join('')}</ul>
+          <h5>背景說明</h5><p>${escapeHtml(a.detail.background)}</p>
+          <h5>可能影響</h5><p>${escapeHtml(a.detail.impact)}</p>
+          <h5>值得關注的後續</h5>
+          <ul>${a.detail.followup.map(p=>`<li>${escapeHtml(p)}</li>`).join('')}</ul>
+        </details>
+      </div>`
+      : `<div class="pending">尚未產生摘要 — 按上方「產生中英雙語摘要」(一次處理前 ${MAX_SUMMARIZE} 則)</div>`}
+    </div>`).join('');
+}
 
-        function togglePasteArea() {
-            const area = document.getElementById('pasteAreaContainer');
-            if (area.classList.contains('hidden')) {
-                area.classList.remove('hidden');
-                document.getElementById('pasteInput').focus();
-            } else {
-                area.classList.add('hidden');
-                document.getElementById('pasteInput').value = '';
-            }
-        }
+/* ── 雙語摘要(一次處理前 15 則)── */
+function buildPrompt(){
+  const list = articles.slice(0, MAX_SUMMARIZE).map((a,i)=>`${i}. [${a.source}] ${a.title}`).join('\n');
+  return `請閱讀以下新聞內容,並用繁體中文整理重點摘要。
 
-        function processPastedData() {
-            const text = document.getElementById('pasteInput').value.trim();
-            if (!text) return alert("請貼上資料！");
+請依照以下格式輸出:
 
-            const rows = text.split('\n');
-            const newData = [];
-            let startIndex = (rows[0].includes('公司') || rows[0].includes('產業')) ? 1 : 0;
+1. 一句話總結: 用一句話說明這篇新聞最核心的重點。
 
-            for (let i = startIndex; i < rows.length; i++) {
-                const cols = rows[i].split('\t');
-                const finalCols = cols.length === 1 ? rows[i].split(',') : cols;
-                if (finalCols.length >= 6) {
-                    newData.push({
-                        company: finalCols[0]?.trim() || "",
-                        a: finalCols[1]?.trim() || "",
-                        industry: finalCols[2]?.trim() || "",
-                        c: finalCols[3]?.trim() || "",
-                        position: finalCols[4]?.trim() || "",
-                        date: finalCols[5]?.trim() || ""
-                    });
-                }
-            }
+2. 主要重點: 請列出 3 到 5 個條列式重點,聚焦於事件、人物、時間、地點、原因與影響。
 
-            if (newData.length > 0) {
-                tableData = newData;
-                renderTable();
-                togglePasteArea();
-            } else {
-                alert("無法解析資料，請確認格式是否正確 (需包含 6 個欄位)。");
-            }
-        }
+3. 背景說明: 簡要說明這則新聞的背景,讓沒有看過原文的人也能理解。
 
-        // --- 核心資料計算與圖表邏輯 ---
+4. 可能影響: 分析這則新聞可能對社會、產業、政策、民眾或相關利害關係人造成的影響。
 
-        function aggregateData(data, key) {
-            return data.reduce((acc, row) => {
-                const val = row[key] || '未填寫';
-                acc[val] = (acc[val] || 0) + 1;
-                return acc;
-            }, {});
-        }
+5. 值得關注的後續: 列出接下來需要觀察的發展或問題。
 
-        // 將小於 2% 的資料合併為「其他」
-        function processPieDataForUnder2Percent(countsObj) {
-            const total = Object.values(countsObj).reduce((sum, val) => sum + val, 0);
-            if (total === 0) return {};
+請避免加入未經新聞內容提及的推測,若有不確定資訊,請標註「新聞中未明確說明」。
 
-            const result = {};
-            let otherCount = 0;
+以下是今日新聞(目前僅有標題與來源,請以標題為依據整理;標題未提及的細節請標註「新聞中未明確說明」):
 
-            for (const [key, val] of Object.entries(countsObj)) {
-                const percentage = val / total;
-                if (percentage < 0.02) {
-                    otherCount += val; // 低於2% 歸入計數
-                } else {
-                    if (key === '其他') {
-                        otherCount += val; // 遇到原本就是「其他」的也一起歸入整合的計數
-                    } else {
-                        result[key] = val;
-                    }
-                }
-            }
+${list}
 
-            if (otherCount > 0) {
-                result['其他'] = (result['其他'] || 0) + otherCount;
-            }
+請對「每一則」編號新聞各產生一份上述格式的摘要,並額外提供:
+- "title_en": 標題的自然英文翻譯
+- "sum_en": 1–2 句自然的英文摘要(適合 B2 程度英文學習者閱讀)
 
-            return result;
-        }
+輸出格式:只回傳純 JSON 陣列,不要 markdown 圍欄、不要任何前言:
+[{"i":0,"title_en":"...","sum_en":"...","one_line":"一句話總結","points":["重點1","重點2","重點3"],"background":"背景說明","impact":"可能影響","followup":["後續1","後續2"]}, ...]`;
+}
 
-        function drawPieChart(chartId, dataObj, chartKey) {
-            const ctx = document.getElementById(chartId).getContext('2d');
-            const labels = Object.keys(dataObj);
-            const dataValues = Object.values(dataObj);
-
-            if (chartInstances[chartKey]) chartInstances[chartKey].destroy();
-
-            if (labels.length === 0) {
-                chartInstances[chartKey] = new Chart(ctx, { type: 'pie', data: { labels: ['無資料'], datasets: [{ data: [1], backgroundColor: ['#e2e8f0'] }] } });
-                return;
-            }
-
-            chartInstances[chartKey] = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: dataValues,
-                        backgroundColor: chartColors.slice(0, labels.length),
-                        borderWidth: 2,
-                        borderColor: '#ffffff'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { padding: 15 } },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const total = context.chart._metasets[context.datasetIndex].total;
-                                    const value = context.raw;
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${context.label}: ${value} 筆 (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function drawLineChart(chartId, dataObj, chartKey) {
-            const ctx = document.getElementById(chartId).getContext('2d');
-            const sortedDates = Object.keys(dataObj).sort((a, b) => new Date(a) - new Date(b));
-            const dataValues = sortedDates.map(date => dataObj[date]);
-
-            if (chartInstances[chartKey]) chartInstances[chartKey].destroy();
-
-            if (sortedDates.length === 0) {
-                 chartInstances[chartKey] = new Chart(ctx, { type: 'line', data: { labels: ['無資料'], datasets: [{ data: [] }] }});
-                 return;
-            }
-
-            chartInstances[chartKey] = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: sortedDates,
-                    datasets: [{
-                        label: '每日次數',
-                        data: dataValues,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        borderWidth: 3,
-                        pointBackgroundColor: '#ffffff',
-                        pointBorderColor: '#10b981',
-                        pointBorderWidth: 2,
-                        pointRadius: 4,
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } },
-                    plugins: { legend: { display: false }, tooltip: { intersect: false, mode: 'index' } },
-                    interaction: { mode: 'nearest', axis: 'x', intersect: false }
-                }
-            });
-        }
-
-        // --- 分頁 3：詳細統計表格建立 ---
-        function renderStatsTables(validData) {
-            const companyCounts = aggregateData(validData, 'company');
-            const industryCounts = aggregateData(validData, 'industry');
-            const positionCounts = aggregateData(validData, 'position');
-            const total = validData.length;
-
-            buildStatTable('companyStatsTable', companyCounts, total);
-            buildStatTable('industryStatsTable', industryCounts, total);
-            buildStatTable('positionStatsTable', positionCounts, total);
-        }
-
-        function buildStatTable(containerId, dataObj, totalCount) {
-            const container = document.getElementById(containerId);
-            if(totalCount === 0) {
-                container.innerHTML = '<tr><td colspan="3" class="text-center p-4 text-slate-400">無資料</td></tr>';
-                return;
-            }
-
-            // 依數量由大到小排序
-            const sortedData = Object.entries(dataObj).sort((a, b) => b[1] - a[1]);
-
-            let html = '';
-            sortedData.forEach(([key, count]) => {
-                const percentage = ((count / totalCount) * 100).toFixed(1);
-                html += `
-                    <tr class="hover:bg-slate-50 transition-colors">
-                        <td class="px-4 py-3 text-slate-700 break-words">${key}</td>
-                        <td class="px-4 py-3 text-slate-700 text-right font-medium">${count}</td>
-                        <td class="px-4 py-3 text-slate-500 text-right">${percentage}%</td>
-                    </tr>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        // 統一更新流程
-        function updateAllData() {
-            const validData = tableData.filter(row => 
-                row.company.trim() !== '' || row.industry.trim() !== '' || row.position.trim() !== '' || row.date.trim() !== ''
-            );
-
-            // 1. 更新圖表
-            updateCharts(validData);
-            
-            // 2. 更新詳細數據表格
-            renderStatsTables(validData);
-        }
-
-        function updateCharts(validData = null) {
-            if(!validData) {
-                validData = tableData.filter(row => 
-                    row.company.trim() !== '' || row.industry.trim() !== '' || row.position.trim() !== '' || row.date.trim() !== ''
-                );
-            }
-
-            // 原始計數
-            const companyCounts = aggregateData(validData, 'company');
-            const industryCounts = aggregateData(validData, 'industry');
-            const positionCounts = aggregateData(validData, 'position');
-            const dateCounts = aggregateData(validData, 'date');
-
-            // 處理低於 2% 的項目，僅用於圓餅圖
-            const companyPieData = processPieDataForUnder2Percent(companyCounts);
-            const industryPieData = processPieDataForUnder2Percent(industryCounts);
-            const positionPieData = processPieDataForUnder2Percent(positionCounts);
-
-            drawLineChart('dateChart', dateCounts, 'date');
-            drawPieChart('companyChart', companyPieData, 'company');
-            drawPieChart('industryChart', industryPieData, 'industry');
-            drawPieChart('positionChart', positionPieData, 'position');
-        }
-
-        // 頁面載入初始化
-        window.onload = () => {
-            renderTable();
+$('summBtn').addEventListener('click', async ()=>{
+  $('summBtn').disabled = true;
+  const n = Math.min(articles.length, MAX_SUMMARIZE);
+  ticker(`WIRE — 產生前 ${n} 則五段式摘要中…(約 30~60 秒)`, true);
+  try{
+    const raw = await callLLM(buildPrompt());
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const arr = JSON.parse(clean.slice(clean.indexOf('['), clean.lastIndexOf(']')+1));
+    arr.forEach(o=>{
+      const a = articles[o.i];
+      if(a){
+        a.titleEn = o.title_en; a.sumEn = o.sum_en;
+        a.detail = {
+          oneLine: o.one_line||'',
+          points: Array.isArray(o.points)? o.points : [],
+          background: o.background||'',
+          impact: o.impact||'',
+          followup: Array.isArray(o.followup)? o.followup : (o.followup? [o.followup] : [])
         };
+      }
+    });
+    renderArticles();
+    ticker(`WIRE OK — 前 ${n} 則摘要完成,可切換語言或點卡片展開全文`);
+  }catch(err){
+    ticker('WIRE ERROR — 摘要失敗:' + err.message);
+  }
+  $('summBtn').disabled = false;
+});
 
-    </script>
+/* ── 語言切換 ── */
+document.querySelectorAll('.seg button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.seg button').forEach(b=>b.classList.remove('on'));
+    btn.classList.add('on');
+    document.body.className = 'lang-' + btn.dataset.lang;
+  });
+});
+
+$('fetchBtn').addEventListener('click', fetchNews);
+$('todayDate').textContent = new Date().toLocaleDateString('zh-TW',{year:'numeric',month:'long',day:'numeric',weekday:'long'});
+loadSettings();
+</script>
 </body>
 </html>
